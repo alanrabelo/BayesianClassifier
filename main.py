@@ -2,5 +2,5 @@ from bayesian_classifier import Bayesian_classifier
 
 classifier = Bayesian_classifier()
 
-classifier.load_data('iris.data')
-print(classifier.split_train_test())
+x_train, y_train, x_test, y_test = classifier.load_data('iris.data')
+classifier.fit(x_train, y_train)

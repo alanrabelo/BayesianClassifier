@@ -1,6 +1,10 @@
 import random
+import numpy as np
 
 class Bayesian_classifier:
+
+    averages = {}
+    std = {}
 
     def load_data(self, filename):
 
@@ -32,7 +36,8 @@ class Bayesian_classifier:
 
                 self.dataset.append(data_empty)
 
-            return self.dataset
+
+            return self.split_train_test()
 
     def split_train_test(self, percentage=0.8):
 
@@ -41,8 +46,52 @@ class Bayesian_classifier:
 
         split_point = round(len(shuffled_dataset)*percentage)
 
-        train = shuffled_dataset[:split_point]
-        test = shuffled_dataset[split_point:]
+        train = np.array(shuffled_dataset[:split_point])
+        test = np.array(shuffled_dataset[split_point:])
 
         return train[:, :-1], train[:, -1], test[:, :-1], test[:, -1]
+
+    def fit(self, x_train, y_train):
+
+        values = {}
+
+        for index, x_value in enumerate(x_train):
+
+            y_value = list(y_train)[index]
+
+            if y_value in values.keys():
+
+                values[y_value].append(x_value)
+            else:
+                values[y_value] = [x_value]
+
+        averages = {}
+
+        for key, value in enumerate(values):
+
+            # Cálculo das médias
+            all_values = values[key]
+            average = sum(all_values)/len(all_values)
+            self.averages[key] = average
+
+            # Cálculo das Variâncias
+            for value in all_values:
+                var_res = sum((x_input - average) ** 2 for x_input in all_values) / len(all_values)
+                self.std[key] = var_res ** 0.5
+
+
+        # cálculo da matriz de covariância
+
+        print("Averages will be here: \n %s" % str(self.averages))
+
+        print("Variances will be here: \n %s" % str(self.std))
+
+
+
+
+
+
+
+
+
 
