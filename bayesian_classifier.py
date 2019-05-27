@@ -138,6 +138,7 @@ class Bayesian_classifier:
 
 
 
+        equal_covariance = []
         for key in values_by_class:
 
             values = np.array(values_by_class[key])
@@ -154,7 +155,12 @@ class Bayesian_classifier:
 
                 covariance = (sum(var_x1_values * var_x2_values) / len(var_x1_values)) - (x1_average * x2_average)
                 covariance_matrix[x1][x2] = covariance
-            self.covariances[key] = covariance_matrix
+            equal_covariance = covariance_matrix
+            break
+
+        for key in values_by_class:
+            self.covariances[key] = equal_covariance
+
 
         # cálculo da matriz de covariância
 
@@ -167,7 +173,32 @@ class Bayesian_classifier:
 
     # def prior(self, train_y):
 
-    def gaussian(self, x_test, cov, u1, pw=0.5):
+    # def gaussian(self, x_test, cov, u1, pw=0.5):
+    #
+    #     u1_transp = u1.transpose()
+    #     x_test_transp = x_test.transpose()
+    #     det_cov = det(cov)
+    #
+    #     try:
+    #         inv_cov = inv(cov)
+    #     except:
+    #         inv_cov = cov
+    #
+    #     result = -0.5 * (np.dot(np.dot(x_test_transp, inv_cov), x_test)) + \
+    #            0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
+    #            0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) - \
+    #            0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1))
+    #
+    #
+    #     try:
+    #         log_det_cov = math.log(det_cov)
+    #     except:
+    #         log_det_cov = 0
+    #
+    #     return result - log_det_cov - (0.5 * math.log(2 * math.pi)) + math.log(pw)
+
+
+    def gaussian_linear(self, x_test, cov, u1, pw=0.5):
 
         u1_transp = u1.transpose()
         x_test_transp = x_test.transpose()
@@ -178,21 +209,12 @@ class Bayesian_classifier:
         except:
             inv_cov = cov
 
-        result = -0.5 * (np.dot(np.dot(x_test_transp, inv_cov), x_test)) + \
-               0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
-               0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) - \
-               0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1))
+        result = 0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
+                 0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) \
+                -0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1)) \
+                 + math.log(pw) - (0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1)))
 
-
-        try:
-            log_det_cov = math.log(det_cov)
-        except:
-            log_det_cov = 0
-
-        return result - log_det_cov - (0.5 * math.log(2 * math.pi)) + math.log(pw)
-
-
-
+        return result
 
 
 
@@ -238,7 +260,7 @@ class Bayesian_classifier:
             if len(cov) == 0:
                 continue
 
-            probability = self.gaussian(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
 
             if probability > max_probability:
                 max_probability = probability
