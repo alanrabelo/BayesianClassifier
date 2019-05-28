@@ -1,31 +1,36 @@
-from bayesian_classifier import Bayesian_classifier
+from bayesian_classifier import Bayesian_classifier, DiscriminantType
 
 
-correct_rates = []
-datasets = ['iris.data', 'coluna.data', 'dermatology.data', 'artificial.data', 'breast-cancer.data']
-# datasets = ['artificial.data']
+# datasets = ['iris.data']
+datasets = ['iris.data', 'coluna.data', 'dermatology.data', 'breast-cancer.data', 'artificial.data']
+# datasets = ['breast-cancer.data']
 
 for dataset in datasets:
+    print('estamos no dataset %s' % dataset)
 
-    for realization in range(0, 1):
+    for type in [DiscriminantType.PURE, DiscriminantType.QUADRATIC, DiscriminantType.LINEAR]:
 
-        # print('Realização %d' % realization)
+        correct_rates = []
 
-        classifier = Bayesian_classifier()
+        for realization in range(0, 1):
 
-        x_train, y_train, x_test, y_test = classifier.load_data('Datasets/%s' % dataset)
-        classifier.fit(x_train, y_train)
+            # print('Realização %d' % realization)
 
-        print('Matriz de confusão para %s' % dataset)
-        correct_rate = classifier.evaluate(x_test, y_test, conf_matrix=True)
-        correct_rates.append(correct_rate)
+            classifier = Bayesian_classifier(type=DiscriminantType.QUADRATIC)
 
-        if realization == 0:
-            classifier.plot_decision_surface('Datasets/%s' % dataset, 'Datasets/%s' % dataset)
+            x_train, y_train, x_test, y_test = classifier.load_data('Datasets/%s' % dataset)
+            classifier.fit(x_train, y_train)
 
-    accuracy = sum(correct_rates)/len(correct_rates)
-    std = (sum([(x-accuracy)**2 for x in correct_rates])/len(correct_rates))**0.5
+            print('Matriz de confusão para %s' % dataset)
+            correct_rate = classifier.evaluate(x_test, y_test, conf_matrix=True)
+            correct_rates.append(correct_rate)
 
-    print("O classificador bayesiano puro acertou %.2f" % (accuracy*100))
+            if realization == 0:
+                classifier.plot_decision_surface('Datasets/%s' % dataset, 'Datasets/%s' % dataset)
 
-    print("O desvio padrão foi %.2f" % std)
+        accuracy = sum(correct_rates)/len(correct_rates)
+        std = (sum([(x-accuracy)**2 for x in correct_rates])/len(correct_rates))**0.5
+
+        print("O classificador bayesiano puro acertou %.2f" % (accuracy*100))
+
+        print("O desvio padrão foi %.2f" % std)

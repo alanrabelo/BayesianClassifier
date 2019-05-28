@@ -4,6 +4,15 @@ from scipy.stats import *
 import math
 from numpy.linalg import inv, det
 import matplotlib.pyplot as plt
+from enum import Enum
+from decimal import Decimal
+
+class DiscriminantType(Enum):
+    LINEAR = 'linear'
+    QUADRATIC = 'quadratic'
+    PURE = 'pure'
+
+
 
 class Bayesian_classifier:
 
@@ -11,6 +20,13 @@ class Bayesian_classifier:
     std = {}
     priors = {}
     covariances = {}
+
+    def __init__(self, type=DiscriminantType.PURE):
+        self.type = type.value
+        self.averages = {}
+        self.std = {}
+        self.priors = {}
+        self.covariances = {}
 
     def load_data(self, filename, add_evaluation_values=False):
 
@@ -22,7 +38,7 @@ class Bayesian_classifier:
 
             for line in data.readlines():
 
-                if len(line) < 5 or "?" in line:
+                if len(line) < 7 or "?" in line:
                     continue
 
                 data_line = line.split(',')
@@ -198,23 +214,42 @@ class Bayesian_classifier:
     #     return result - log_det_cov - (0.5 * math.log(2 * math.pi)) + math.log(pw)
 
 
-    def gaussian_linear(self, x_test, cov, u1, pw=0.5):
-
-        u1_transp = u1.transpose()
-        x_test_transp = x_test.transpose()
+    def gaussian_quadratic(self, x_test, cov, u1, pw=0.5):
+        distance = np.array([(x_test - u1)]).transpose()
+        distance_transp = x_test - u1
         det_cov = det(cov)
-
         try:
             inv_cov = inv(cov)
         except:
             inv_cov = cov
 
-        result = 0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
-                 0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) \
-                -0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1)) \
-                 + math.log(pw) - (0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1)))
+        top = math.exp(-0.5*(np.dot(np.dot(distance_transp, inv_cov), distance)))
+        bottom = (2*math.pi)**(len(x_test)/2.0) * det_cov**0.5
 
-        return result
+        return math.log(top / bottom) + math.log(pw)
+
+
+    def gaussian_linear(self, x_test, cov, u1, pw=0.5):
+
+        distance = np.array([(x_test - u1)]).transpose()
+        distance_transp = x_test - u1
+        det_cov = det(cov)
+        inv_cov = inv(cov)
+
+        top = -0.5*(np.dot(np.dot(distance_transp, inv_cov), distance))
+        bottom = (2*math.pi)**(len(x_test)/2.0) * det_cov**0.5
+        return math.log(top / bottom) + math.log(pw)
+
+    def gaussian_pure(self, x_test, cov, u1, pw=0.5):
+
+        distance = np.array([(x_test - u1)]).transpose()
+        distance_transp = x_test - u1
+        det_cov = det(cov)
+        inv_cov = inv(cov)
+
+        top = -0.5*(np.dot(np.dot(distance_transp, inv_cov), distance))
+        bottom = (2*math.pi)**(len(x_test)/2.0) * det_cov**0.5
+        return top / bottom
 
 
 
@@ -260,7 +295,13 @@ class Bayesian_classifier:
             if len(cov) == 0:
                 continue
 
-            probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            if self.type == DiscriminantType.LINEAR.value:
+                probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            elif self.type == DiscriminantType.QUADRATIC.value:
+                probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            else:
+                probability = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+
 
             if probability > max_probability:
                 max_probability = probability
@@ -268,6 +309,42 @@ class Bayesian_classifier:
 
         return best_classe
 
+    def predict_multiple(self, X):
+
+        results = []
+        for input in X:
+            results.append(self.predict(input))
+
+        return np.array(results)
+
+
+
+    # def plot_decision_surface(self, filename, title):
+    #     from mlxtend.plotting import plot_decision_regions
+    #
+    #     shuffled_dataset = np.array(self.dataset)
+    #     random.shuffle(shuffled_dataset)
+    #     value = 1.5
+    #     width = 0.75
+    #
+    #     X = shuffled_dataset[:, :-1]
+    #     y = np.array(shuffled_dataset[:, -1], dtype=int)
+    #     from itertools import product
+    #
+    #     # Plotting decision regions
+    #     x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    #     y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    #     xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.1),
+    #                          np.arange(y_min, y_max, 0.1))
+    #
+    #     Z = self.predict_multiple(np.c_[xx.ravel()]).transpose()
+    #     Z = Z.reshape(xx.shape)
+    #
+    #     plt.contourf(xx, yy, Z, alpha=0.4)
+    #     plt.scatter(X[:, 0], X[:, 1], c=y, s=20, edgecolor='k')
+    #     plt.title('Iris')
+    #
+    #     plt.show()
 
     def plot_decision_surface(self, filename, title):
 
@@ -289,27 +366,35 @@ class Bayesian_classifier:
 
         colors = [clear_red, clear_blue, clear_green, clear_yellow, clear_pink, clear_orange]
         strong_colors = ['red', 'blue', '#2ECC71', '#F9FF2D', '#FF2DF2', '#FFAE00']
-        number_of_points = 100
+        number_of_points = 80
+
+        points_for_class = {}
 
         for i in range(0, number_of_points+1, 1):
             for j in range(0, number_of_points+1, 1):
                 x = i / number_of_points
                 y = j / number_of_points
                 value = int(self.predict(np.array([x, y])))
+                if value in points_for_class:
+                    points_for_class[value].append([x, y])
+                else:
+                    points_for_class[value] = [[x, y]]
 
-                color = colors[value]
+        for key in points_for_class.keys():
 
-                plt.plot([x], [y], 'ro', color=color)
+            points = np.array(points_for_class[key])
+            plt.plot(points[:, 0], points[:, 1], 'ro', color=colors[key])
 
-        for index, input in enumerate(x_test):
-            color_value = int(self.predict(input))
-            plt.plot(input[0], input[1], 'ro', color=strong_colors[color_value])
 
         medium_colors = ['#641E16', '#1B4F72', '#186A3B', '#AAB203', '#970297', '#974F02']
 
         for index, input in enumerate(x_train):
-            color_value = int(self.predict(input))
+            color_value = int(y_train[index])
             plt.plot(input[0], input[1], 'ro', color=medium_colors[color_value])
+
+        for index, input in enumerate(x_test):
+            color_value = int(y_test[index])
+            plt.plot(input[0], input[1], 'ro', color=strong_colors[color_value])
 
         plt.suptitle(title)
         plt.show()
