@@ -8,7 +8,7 @@ datasets = ['iris.data', 'coluna.data', 'dermatology.data', 'breast-cancer.data'
 for dataset in datasets:
     print('estamos no dataset %s' % dataset)
 
-    for type in [DiscriminantType.PURE, DiscriminantType.QUADRATIC, DiscriminantType.LINEAR]:
+    for type in [DiscriminantType.QUADRATIC]:
 
         correct_rates = []
 

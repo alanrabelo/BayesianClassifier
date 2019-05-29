@@ -104,6 +104,11 @@ class Bayesian_classifier:
 
     def fit(self, x_train, y_train):
 
+        self.averages = {}
+        self.std = {}
+        self.priors = {}
+        self.covariances = {}
+
         values = {}
         number_of_variables = 0
 
@@ -153,8 +158,6 @@ class Bayesian_classifier:
                 values_by_class[y_train[index]] = [value]
 
 
-
-        equal_covariance = []
         for key in values_by_class:
 
             values = np.array(values_by_class[key])
@@ -171,11 +174,12 @@ class Bayesian_classifier:
 
                 covariance = (sum(var_x1_values * var_x2_values) / len(var_x1_values)) - (x1_average * x2_average)
                 covariance_matrix[x1][x2] = covariance
-            equal_covariance = covariance_matrix
-            break
 
-        for key in values_by_class:
-            self.covariances[key] = equal_covariance
+            # TODO: Adjuste na matriz de covariância para representar classes equiprováveis
+            self.covariances[key] = covariance_matrix
+
+
+
 
 
         # cálculo da matriz de covariância
@@ -215,18 +219,27 @@ class Bayesian_classifier:
 
 
     def gaussian_quadratic(self, x_test, cov, u1, pw=0.5):
-        distance = np.array([(x_test - u1)]).transpose()
-        distance_transp = x_test - u1
+
+        u1_transp = u1.transpose()
+        x_test_transp = x_test.transpose()
         det_cov = det(cov)
+
         try:
             inv_cov = inv(cov)
         except:
             inv_cov = cov
 
-        top = math.exp(-0.5*(np.dot(np.dot(distance_transp, inv_cov), distance)))
-        bottom = (2*math.pi)**(len(x_test)/2.0) * det_cov**0.5
+        result = -0.5 * (np.dot(np.dot(x_test_transp, inv_cov), x_test)) + \
+                 0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
+                 0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) - \
+                 0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1))
 
-        return math.log(top / bottom) + math.log(pw)
+        try:
+            log_det_cov = math.log(det_cov)
+        except:
+            log_det_cov = 0
+
+        return result - log_det_cov - (0.5 * math.log(2 * math.pi)) + math.log(pw)
 
 
     def gaussian_linear(self, x_test, cov, u1, pw=0.5):
@@ -295,12 +308,14 @@ class Bayesian_classifier:
             if len(cov) == 0:
                 continue
 
-            if self.type == DiscriminantType.LINEAR.value:
-                probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
-            elif self.type == DiscriminantType.QUADRATIC.value:
-                probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
-            else:
-                probability = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+
+            # if self.type == DiscriminantType.LINEAR.value:
+            #     probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            # elif self.type == DiscriminantType.QUADRATIC.value:
+            #     probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            # else:
+            #     probability = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
 
 
             if probability > max_probability:
