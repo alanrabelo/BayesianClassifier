@@ -226,7 +226,10 @@ class Bayesian_classifier:
         except:
             inv_cov = cov
 
-        top = math.exp(-0.5 * (np.dot(np.dot(distance_transp, inv_cov), distance)))
+        try:
+            top = math.exp(-0.5 * (np.dot(np.dot(distance_transp, inv_cov), distance)))
+        except:
+            top = 1
         bottom = top / (2 * math.pi) ** (len(x_test) / 2.0) * (det_cov if det_cov > 0 else 1)**0.5
         return (math.log(bottom) if bottom > 0 else 1) + math.log(pw)
 

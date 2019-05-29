@@ -7,14 +7,13 @@ datasets = ['iris.data', 'coluna.data', 'dermatology.data', 'breast-cancer.data'
 
 for dataset in datasets:
 
-    print('estamos no dataset %s' % dataset)
+    print('\n\nestamos no dataset %s' % dataset)
 
-    for type in [DiscriminantType.PURE, DiscriminantType.LINEAR, DiscriminantType.QUADRATIC]:
-    # for type in [DiscriminantType.LINEAR]:
+    for type in [DiscriminantType.LINEAR, DiscriminantType.QUADRATIC]:
 
         correct_rates = []
 
-        for realization in range(0, 1):
+        for realization in range(0, 30):
 
             # print('Realização %d' % realization)
             classifier = Bayesian_classifier(type=type)
@@ -22,12 +21,16 @@ for dataset in datasets:
             x_train, y_train, x_test, y_test = classifier.load_data('Datasets/%s' % dataset)
             classifier.fit(x_train, y_train)
 
-            print('Matriz de confusão para %s' % dataset)
-            correct_rate = classifier.evaluate(x_test, y_test, conf_matrix=True)
+            if realization == 0:
+                print('Matriz de confusão para %s no discriminante %s' % (dataset, type.value))
+                correct_rate = classifier.evaluate(x_test, y_test, conf_matrix=True)
+                # Bayesian_classifier(type=type).plot_decision_surface('Datasets/%s' % dataset, dataset.split('.')[0] + ' - ' +type.value, same_covariances=True)
+
+            else:
+                correct_rate = classifier.evaluate(x_test, y_test, conf_matrix=False)
+
             correct_rates.append(correct_rate)
 
-            if realization == 0:
-                Bayesian_classifier(type=type).plot_decision_surface('Datasets/%s' % dataset, dataset.split('.')[0] + ' - ' +type.value, same_covariances=True)
 
 
         accuracy = sum(correct_rates)/len(correct_rates)
