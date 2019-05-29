@@ -104,11 +104,6 @@ class Bayesian_classifier:
 
     def fit(self, x_train, y_train):
 
-        self.averages = {}
-        self.std = {}
-        self.priors = {}
-        self.covariances = {}
-
         values = {}
         number_of_variables = 0
 
@@ -220,8 +215,8 @@ class Bayesian_classifier:
 
     def gaussian_quadratic(self, x_test, cov, u1, pw=0.5):
 
-        u1_transp = u1.transpose()
-        x_test_transp = x_test.transpose()
+        distance = np.array([(x_test - u1)]).transpose()
+        distance_transp = x_test - u1
         det_cov = det(cov)
 
         try:
@@ -229,17 +224,9 @@ class Bayesian_classifier:
         except:
             inv_cov = cov
 
-        result = -0.5 * (np.dot(np.dot(x_test_transp, inv_cov), x_test)) + \
-                 0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
-                 0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) - \
-                 0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1))
-
-        try:
-            log_det_cov = math.log(det_cov)
-        except:
-            log_det_cov = 0
-
-        return result - log_det_cov - (0.5 * math.log(2 * math.pi)) + math.log(pw)
+        top = math.exp(-0.5 * (np.dot(np.dot(distance_transp, inv_cov), distance)))
+        bottom = top / (2 * math.pi) ** (len(x_test) / 2.0) * (det_cov if det_cov > 0 else 1)**0.5
+        return (math.log(bottom) if bottom > 0 else 1) + math.log(pw)
 
 
     def gaussian_linear(self, x_test, cov, u1, pw=0.5):
@@ -247,21 +234,26 @@ class Bayesian_classifier:
         distance = np.array([(x_test - u1)]).transpose()
         distance_transp = x_test - u1
         det_cov = det(cov)
-        inv_cov = inv(cov)
+        try:
+            inv_cov = inv(cov)
+        except:
+            inv_cov = cov
 
-        top = -0.5*(np.dot(np.dot(distance_transp, inv_cov), distance))
-        bottom = (2*math.pi)**(len(x_test)/2.0) * det_cov**0.5
-        return math.log(top / bottom) + math.log(pw)
+        res1 = (np.dot(np.dot(inv_cov, u1).transpose(), x_test))
+        res2 = 0.5*np.dot((np.dot(u1.transpose(), inv_cov)), u1)
+        return res1 + math.log(pw) - res2
 
     def gaussian_pure(self, x_test, cov, u1, pw=0.5):
 
         distance = np.array([(x_test - u1)]).transpose()
         distance_transp = x_test - u1
         det_cov = det(cov)
-        inv_cov = inv(cov)
-
+        try:
+            inv_cov = inv(cov)
+        except:
+            inv_cov = cov
         top = -0.5*(np.dot(np.dot(distance_transp, inv_cov), distance))
-        bottom = (2*math.pi)**(len(x_test)/2.0) * det_cov**0.5
+        bottom = (2*math.pi)**(len(x_test)/2.0) * (det_cov if det_cov > 0 else 1)**0.5
         return top / bottom
 
 
@@ -308,14 +300,12 @@ class Bayesian_classifier:
             if len(cov) == 0:
                 continue
 
-            probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
-
-            # if self.type == DiscriminantType.LINEAR.value:
-            #     probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
-            # elif self.type == DiscriminantType.QUADRATIC.value:
-            #     probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
-            # else:
-            #     probability = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            if self.type == DiscriminantType.LINEAR.value:
+                probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            elif self.type == DiscriminantType.QUADRATIC.value:
+                probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+            else:
+                probability = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
 
 
             if probability > max_probability:
@@ -412,7 +402,7 @@ class Bayesian_classifier:
             plt.plot(input[0], input[1], 'ro', color=strong_colors[color_value])
 
         plt.suptitle(title)
-        plt.show()
+        plt.savefig('Plots/' + title + '.png')
 
 
 
