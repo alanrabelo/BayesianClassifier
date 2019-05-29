@@ -218,6 +218,8 @@ class Bayesian_classifier:
         distance = np.array([(x_test - u1)]).transpose()
         distance_transp = x_test - u1
         det_cov = det(cov)
+        if det_cov == 0:
+            det_cov = 1
 
         try:
             inv_cov = inv(cov)
@@ -234,6 +236,7 @@ class Bayesian_classifier:
         distance = np.array([(x_test - u1)]).transpose()
         distance_transp = x_test - u1
         det_cov = det(cov)
+
         try:
             inv_cov = inv(cov)
         except:
@@ -351,7 +354,7 @@ class Bayesian_classifier:
     #
     #     plt.show()
 
-    def plot_decision_surface(self, filename, title):
+    def plot_decision_surface(self, filename, title, folder_to_save='Plots/', same_covariances=False):
 
         # parameter_combination = list(itertools.combinations(range(len(list(X[0]))), 2))
 
@@ -361,6 +364,18 @@ class Bayesian_classifier:
         x_test = x_test[:, :2]
 
         self.fit(x_train, y_train)
+
+        if same_covariances:
+
+            average_covariance = np.zeros(list(self.covariances.values())[0].shape)
+
+            for key, value in enumerate(self.covariances):
+                average_covariance += self.covariances[key]
+
+            average_covariance /= len(self.covariances.keys())
+
+            for key, value in enumerate(self.covariances):
+                self.covariances[key] = average_covariance
 
         clear_red = "#ffcccc"
         clear_blue = "#ccffff"
@@ -402,7 +417,7 @@ class Bayesian_classifier:
             plt.plot(input[0], input[1], 'ro', color=strong_colors[color_value])
 
         plt.suptitle(title)
-        plt.savefig('Plots/' + title + '.png')
+        plt.savefig(folder_to_save + title + '.png')
 
 
 
