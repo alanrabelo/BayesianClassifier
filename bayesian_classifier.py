@@ -20,6 +20,7 @@ class Bayesian_classifier:
     std = {}
     priors = {}
     covariances = {}
+    wr = 0
 
     def __init__(self, type=DiscriminantType.PURE):
         self.type = type.value
@@ -48,6 +49,7 @@ class Bayesian_classifier:
                 for value in X:
                     data_empty.append(float(value))
                 y = data_line[-1]
+
 
                 if y in categories:
                     data_empty.append(float(categories[y]))
@@ -102,115 +104,128 @@ class Bayesian_classifier:
 
         return train[:, :-1], train[:, -1], test[:, :-1], test[:, -1]
 
-    def fit(self, x_train, y_train):
+    def split_train_test_local(self, X, Y, percentage=0.8):
 
-        values = {}
-        number_of_variables = 0
+        shuffled_dataset = []
 
-        for index, x_value in enumerate(x_train):
+        for index, x in enumerate(X):
+            line = list(x)
+            line.append(Y[index])
+            shuffled_dataset.append(np.array(line))
 
-            number_of_variables = len(x_value)
+        random.shuffle(shuffled_dataset)
 
-            y_value = list(y_train)[index]
+        split_point = round(len(shuffled_dataset) * percentage)
 
-            if y_value in values.keys():
-                values[y_value].append(x_value)
-            else:
-                values[y_value] = [x_value]
+        train = np.array(shuffled_dataset[:split_point])
+        test = np.array(shuffled_dataset[split_point:])
 
-        averages = {}
+        return train[:, :-1], train[:, -1], test[:, :-1], test[:, -1]
 
-        for key, value in enumerate(values):
+    def fit(self, X, Y):
 
-            # Cálculo das médias
-            all_values = values[key]
-            average = sum(all_values)/len(all_values)
-            self.averages[key] = average
+        best_rej_rate = 0
+        best_chow = math.inf
 
-            self.priors[key] = len(all_values) / sum([len(w) for w in values.values()])
+        for rejection_rate in range(0, 45, 1):
 
-            # Cálculo das Variâncias
-            for value in all_values:
-                var_res = sum((x_input - average) ** 2 for x_input in all_values) / len(all_values)
-                self.std[key] = var_res ** 0.5
+            x_train, y_train, x_test, y_test = self.split_train_test_local(X, Y)
 
-        # x_train = np.array(x_train)
+            values = {}
+            number_of_variables = 0
 
-        from itertools import product
+            for index, x_value in enumerate(x_train):
 
-        number_of_variables = len(x_train[0])
-        self.covariance = np.zeros((number_of_variables, number_of_variables))
+                number_of_variables = len(x_value)
 
-        combinations = [p for p in product(list(range(0, number_of_variables)), repeat=2)]
+                y_value = list(y_train)[index]
 
-        values_by_class = {}
+                if y_value in values.keys():
+                    values[y_value].append(x_value)
+                else:
+                    values[y_value] = [x_value]
 
-        for index, value in enumerate(x_train):
+            averages = {}
 
-            if y_train[index] in values_by_class:
-                values_by_class[y_train[index]].append(value)
-            else:
-                values_by_class[y_train[index]] = [value]
+            for key, value in enumerate(values):
 
+                # Cálculo das médias
+                all_values = values[key]
+                average = sum(all_values)/len(all_values)
+                self.averages[key] = average
 
-        for key in values_by_class:
+                self.priors[key] = len(all_values) / sum([len(w) for w in values.values()])
 
-            values = np.array(values_by_class[key])
+                # Cálculo das Variâncias
+                for value in all_values:
+                    var_res = sum((x_input - average) ** 2 for x_input in all_values) / len(all_values)
+                    self.std[key] = var_res ** 0.5
 
-            covariance_matrix = np.zeros((number_of_variables, number_of_variables), dtype=float)
+            # x_train = np.array(x_train)
 
-            for x1, x2 in combinations:
+            from itertools import product
 
-                var_x1_values = values[:, x1]
-                var_x2_values = values[:, x2]
-                x1_average = sum(var_x1_values)/len(var_x1_values)
-                x2_average = sum(var_x2_values)/len(var_x2_values)
+            number_of_variables = len(x_train[0])
+            self.covariance = np.zeros((number_of_variables, number_of_variables))
 
+            combinations = [p for p in product(list(range(0, number_of_variables)), repeat=2)]
 
-                covariance = (sum(var_x1_values * var_x2_values) / len(var_x1_values)) - (x1_average * x2_average)
-                covariance_matrix[x1][x2] = covariance
+            values_by_class = {}
 
-            # TODO: Adjuste na matriz de covariância para representar classes equiprováveis
-            self.covariances[key] = covariance_matrix
+            for index, value in enumerate(x_train):
 
-
-
-
-
-        # cálculo da matriz de covariância
+                if y_train[index] in values_by_class:
+                    values_by_class[y_train[index]].append(value)
+                else:
+                    values_by_class[y_train[index]] = [value]
 
 
-        # print("Averages will be here: \n %s" % str(self.averages))
-        # print("Priors will be here: \n %s" % str(self.priors))
-        # print("Variances will be here: \n %s" % str(self.std))
-        # print("CoVariances will be here: \n %s" % str(self.covariance))
+            for key in values_by_class:
+
+                values = np.array(values_by_class[key])
+
+                covariance_matrix = np.zeros((number_of_variables, number_of_variables), dtype=float)
+
+                for x1, x2 in combinations:
+
+                    var_x1_values = values[:, x1]
+                    var_x2_values = values[:, x2]
+                    x1_average = sum(var_x1_values)/len(var_x1_values)
+                    x2_average = sum(var_x2_values)/len(var_x2_values)
 
 
-    # def prior(self, train_y):
+                    covariance = (sum(var_x1_values * var_x2_values) / len(var_x1_values)) - (x1_average * x2_average)
+                    covariance_matrix[x1][x2] = covariance
 
-    # def gaussian(self, x_test, cov, u1, pw=0.5):
-    #
-    #     u1_transp = u1.transpose()
-    #     x_test_transp = x_test.transpose()
-    #     det_cov = det(cov)
-    #
-    #     try:
-    #         inv_cov = inv(cov)
-    #     except:
-    #         inv_cov = cov
-    #
-    #     result = -0.5 * (np.dot(np.dot(x_test_transp, inv_cov), x_test)) + \
-    #            0.5 * (np.dot(np.dot(x_test_transp, inv_cov), u1)) + \
-    #            0.5 * (np.dot(np.dot(u1_transp, inv_cov), x_test)) - \
-    #            0.5 * (np.dot(np.dot(u1_transp, inv_cov), u1))
-    #
-    #
-    #     try:
-    #         log_det_cov = math.log(det_cov)
-    #     except:
-    #         log_det_cov = 0
-    #
-    #     return result - log_det_cov - (0.5 * math.log(2 * math.pi)) + math.log(pw)
+                # TODO: Adjuste na matriz de covariância para representar classes equiprováveis
+                self.covariances[key] = covariance_matrix
+
+                number_of_rejections = 0
+                number_of_corrects = 0
+                number_of_errors = 0
+
+            for y_index, x in enumerate(x_test):
+                y = y_test[y_index]
+
+                output = self.predict(x, rejection_rate/100)
+                if output is None:
+                    number_of_rejections += 1
+                elif output == y:
+                    number_of_corrects += 1
+                else:
+                    number_of_errors += 1
+
+            if number_of_errors + (self.wr * number_of_rejections) < best_chow:
+                best_chow = number_of_errors + (self.wr * number_of_rejections)
+                best_rej_rate = rejection_rate/100
+
+        # print('Errou exatamente %d, acertou %d e rejeitou %d' % (number_of_errors, number_of_corrects, number_of_rejections))
+        return best_rej_rate
+
+
+
+
+
 
 
     def gaussian_quadratic(self, x_test, cov, u1, pw=0.5):
@@ -258,22 +273,31 @@ class Bayesian_classifier:
             inv_cov = inv(cov)
         except:
             inv_cov = cov
-        top = -0.5*(np.dot(np.dot(distance_transp, inv_cov), distance))
+
+        try:
+            top = math.exp(-0.5*(np.dot(np.dot(distance_transp, inv_cov), distance)))
+        except:
+            top = 0
+
         bottom = (2*math.pi)**(len(x_test)/2.0) * (det_cov if det_cov > 0 else 1)**0.5
         return top / bottom
 
 
-
-    def evaluate(self, x_test, y_test, conf_matrix=False):
+    def evaluate(self, x_test, y_test, conf_matrix=False, rejection_threshold=0.0):
 
         number_of_elements = float(len(x_test))
         acertos = 0
         erros = 0
+        rejection = 0
         confusion_matrix = {}
 
         for index,value in enumerate(x_test):
 
-            y = self.predict(value)
+            y = self.predict(value, rejection_threshold)
+            if y is None:
+                rejection += 1
+                continue
+
             desired = int(y_test[index])
 
             if desired in confusion_matrix:
@@ -292,13 +316,17 @@ class Bayesian_classifier:
         if conf_matrix:
             print(confusion_matrix)
 
-        return acertos / number_of_elements
+        if number_of_elements-rejection == 0:
+            return 0, float(rejection_threshold)
+
+        return float(acertos) / (acertos+erros), float(rejection_threshold)
 
 
-    def predict(self, x):
+    def predict(self, x, threshold = 0.0):
 
         max_probability = -math.inf
         best_classe = 0
+        sum = 0
 
         for possible_class in self.averages.keys():
 
@@ -307,18 +335,20 @@ class Bayesian_classifier:
                 continue
 
             if self.type == DiscriminantType.LINEAR.value:
-                probability = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+                posteriori = self.gaussian_linear(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
             elif self.type == DiscriminantType.QUADRATIC.value:
-                probability = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+                posteriori = self.gaussian_quadratic(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
             else:
-                probability = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
+                posteriori = self.gaussian_pure(x, self.covariances[possible_class], self.averages[possible_class], self.priors[possible_class])
 
+            probability_for_class = (posteriori * self.priors[possible_class])
+            sum += probability_for_class
 
-            if probability > max_probability:
-                max_probability = probability
+            if probability_for_class > max_probability:
+                max_probability = probability_for_class
                 best_classe = possible_class
 
-        return best_classe
+        return best_classe if max_probability >= (1 - threshold) else None
 
     def predict_multiple(self, X):
 
